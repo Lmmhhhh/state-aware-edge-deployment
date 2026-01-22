@@ -1,0 +1,13 @@
+# logs & outputs
+edgebench/logs/**
+!edgebench/logs/**/.gitkeep
+
+# env
+edgebench/env/**
+!edgebench/env/**/.gitkeep
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.conda/
