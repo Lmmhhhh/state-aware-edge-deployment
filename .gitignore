@@ -1,6 +1,7 @@
 # logs & outputs
 edgebench/logs/**
 !edgebench/logs/raw/**/.gitkeep
+!edgebench/logs/raw/**/.gitkeep
 !edgebench/logs/runs/**/.gitkeep
 
 # env
