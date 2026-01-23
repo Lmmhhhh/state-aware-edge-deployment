@@ -84,7 +84,8 @@ def main():
     args = ap.parse_args()
 
     run_id = f"{args.workload_id}-{args.variant}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    base_dir = os.path.abspath(os.path.join("edgebench", "logs"))
+    EDGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # .../edgebench
+    base_dir = os.path.join(EDGE_ROOT, "logs")                                  # .../edgebench/logs
     raw_stdout_dir = os.path.join(base_dir, "raw", "stdout")
     raw_tegrastats_dir = os.path.join(base_dir, "raw", "tegrastats")
     raw_psutil_dir = os.path.join(base_dir, "raw", "psutil")
