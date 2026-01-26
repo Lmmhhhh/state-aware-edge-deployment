@@ -35,7 +35,6 @@ def main():
     args = ap.parse_args()
 
     # default data dir: <edgebench_root>/_data/image_classification/coco2017_val/images
-    edge_root = Path(__file__).resolve().parents[3]
     default_dir = DATA_ROOT / "image_classification" /"coco2017_val" / "images"
     img_dir = Path(args.data_dir) if args.data_dir else default_dir
 
