@@ -1,12 +1,15 @@
 import time
 import numpy as np
 
-M = 300
-REPEAT = 300
 SEED = 1
+
+M = 2000
+REPEAT = 100
 
 def main():
     np.random.seed(SEED)
+
+    print(f"[matrix_multiplication][low] init m={M} repeat={REPEAT}")
 
     matrix_1 = np.random.rand(M, M)
     matrix_2 = np.random.rand(M, M)
@@ -19,7 +22,6 @@ def main():
 
     checksum = float(out[0, 0]) if out is not None else float("nan")
 
-    print(f"[matrix_multiplication][low] m={M} repeat={REPEAT}")
     print(f"[matrix_multiplication][low] compute_time_s={end-start:.3f} checksum={checksum:.6f}")
 
 if __name__ == "__main__":
