@@ -1,33 +1,49 @@
 import json
+import os
+import socket
 import subprocess
 import time
-import socket
 
-# ---- params 
-SERVER_HOST = "127.0.0.1"   # 진짜 네트워크 측정이면 "상대 디바이스 IP"로 바꾸기
-PORT = 5201
-DURATION_S = 5              # iperf3 -t
-PARALLEL = 1                # iperf3 -P
-REVERSE = False             # True면 reverse(-R): 서버->클라 방향
+SERVER_HOST = os.getenv("EDGEBENCH_IPERF_HOST", "127.0.0.1")
+PORT = int(os.getenv("EDGEBENCH_IPERF_PORT", "5201"))
+DURATION_S = int(os.getenv("EDGEBENCH_IPERF_DURATION_S", "5"))
+PARALLEL = int(os.getenv("EDGEBENCH_IPERF_PARALLEL", "1"))
+REVERSE = os.getenv("EDGEBENCH_IPERF_REVERSE", "0") == "1"
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, check=True)
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+def _wait_port_open(port: int, timeout_s: float = 2.0, interval_s: float = 0.05) -> bool:
+    # 로컬 서버 준비 확인(127.0.0.1:PORT)
+    t_end = time.time() + timeout_s
+    while time.time() < t_end:
+        try:
+            import socket as _s
+            with _s.create_connection(("127.0.0.1", port), timeout=0.2):
+                return True
+        except OSError:
+            time.sleep(interval_s)
+    return False
 
 def main():
-    t0 = time.perf_counter()
+    inner_t0 = time.perf_counter()
 
-    # 1) 서버(one-off) 시작: 테스트 1회 끝나면 자동 종료
     server_cmd = ["iperf3", "-s", "-1", "-p", str(PORT)]
     server = subprocess.Popen(server_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
 
-    try:
-        # 서버 준비 시간을 아주 짧게 준다
-        time.sleep(0.2)
+    status = "success"
+    sent_mbps = float("nan")
+    recv_mbps = float("nan")
+    sent_bytes = -1
+    recv_bytes = -1
+    err_msg = "NA"
 
-        # 2) 클라이언트 실행(JSON)
+    try:
+        if not _wait_port_open(PORT, timeout_s=2.0):
+            raise RuntimeError(f"iperf3 server not ready on 127.0.0.1:{PORT}")
+
         client_cmd = [
-            "iperf3",
-            "-c", SERVER_HOST,
+            "iperf3", "-c", SERVER_HOST,
             "-p", str(PORT),
             "-t", str(DURATION_S),
             "-P", str(PARALLEL),
@@ -37,32 +53,23 @@ def main():
             client_cmd.append("-R")
 
         proc = _run(client_cmd)
+        if proc.returncode != 0:
+            raise RuntimeError((proc.stderr or proc.stdout or "").strip())
+
         data = json.loads(proc.stdout)
 
-        # 3) 결과 파싱
         end = data.get("end", {})
-        sum_sent = end.get("sum_sent", {})
-        sum_recv = end.get("sum_received", {})
+        sum_sent = end.get("sum_sent", {}) or {}
+        sum_recv = end.get("sum_received", {}) or {}
 
-        # bits_per_second -> Mbps
         sent_mbps = float(sum_sent.get("bits_per_second", float("nan"))) / 1e6
         recv_mbps = float(sum_recv.get("bits_per_second", float("nan"))) / 1e6
         sent_bytes = int(sum_sent.get("bytes", -1))
         recv_bytes = int(sum_recv.get("bytes", -1))
 
-        t1 = time.perf_counter()
-        elapsed_s = t1 - t0
-
-        # device name
-        host = socket.gethostname()
-
-        print(
-            f"[iperf3] host={host} server={SERVER_HOST}:{PORT} "
-            f"t={DURATION_S}s P={PARALLEL} reverse={int(REVERSE)} "
-            f"sent_mbps={sent_mbps:.3f} recv_mbps={recv_mbps:.3f} "
-            f"sent_bytes={sent_bytes} recv_bytes={recv_bytes} "
-            f"elapsed_s={elapsed_s:.3f}"
-        )
+    except Exception as e:
+        status = "fail"
+        err_msg = str(e).replace("\n", " ")[:300]
 
     finally:
         try:
@@ -73,6 +80,17 @@ def main():
             server.wait(timeout=1.0)
         except Exception:
             pass
+
+    inner_elapsed_s = time.perf_counter() - inner_t0
+    host = socket.gethostname()
+
+    print(
+        f"[iperf3] variant=default status={status} host={host} server={SERVER_HOST}:{PORT} "
+        f"t={DURATION_S}s P={PARALLEL} reverse={int(REVERSE)} "
+        f"sent_mbps={sent_mbps:.3f} recv_mbps={recv_mbps:.3f} "
+        f"sent_bytes={sent_bytes} recv_bytes={recv_bytes} "
+        f"inner_elapsed_s={inner_elapsed_s:.3f} err={err_msg}"
+    )
 
 if __name__ == "__main__":
     main()
