@@ -55,8 +55,7 @@ def parse_dd_summary(stderr_text: str) -> dict:
 
 
 def main():
-    t0 = time.time()
-
+    t0 = time.perf_counter()
     # --- WRITE TEST
     write_cmd = [
         "dd",
@@ -82,21 +81,21 @@ def main():
     rc_r, r_stderr = run_dd(read_cmd)
     r_sum = parse_dd_summary(r_stderr)
 
-    t1 = time.time()
-    total_s = t1 - t0
+    t1 = time.perf_counter()
+    inner_elapsed_s = t1 - t0
 
     status = "success" if (rc_w == 0 and rc_r == 0) else "fail"
 
     print(
-        "[dd_cmd][rpi] "
-        f"status={status} total_s={total_s:.4f} "
+        "[dd_cmd] "
+        f"status={status} inner_elapsed_s={inner_elapsed_s:.4f} "
         f"write_time_s={w_sum['time_s']} write_bw={w_sum['throughput']} "
         f"read_time_s={r_sum['time_s']} read_bw={r_sum['throughput']} "
         f"write_rc={rc_w} read_rc={rc_r}"
     )
 
-    print("[dd_cmd][rpi] write_raw:", w_sum["raw"])
-    print("[dd_cmd][rpi] read_raw:", r_sum["raw"])
+    print("[dd_cmd] write_raw:", w_sum["raw"])
+    print("[dd_cmd] read_raw:", r_sum["raw"])
 
     try:
         if os.path.exists(WRITE_OUTPUT):
@@ -106,9 +105,9 @@ def main():
 
     if status != "success":
         if rc_w != 0:
-            print("[dd_cmd][rpi] write_stderr:", w_stderr)
+            print("[dd_cmd] write_stderr:", w_stderr)
         if rc_r != 0:
-            print("[dd_cmd][rpi] read_stderr:", r_stderr)
+            print("[dd_cmd] read_stderr:", r_stderr)
 
 
 if __name__ == "__main__":
