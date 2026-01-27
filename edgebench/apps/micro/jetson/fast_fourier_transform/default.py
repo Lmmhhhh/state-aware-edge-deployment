@@ -1,7 +1,7 @@
 import numpy as np
 
 N = 10_000_000
-REPEAT = 1
+REPEAT = 3
 SEED = 1
 
 def main():
@@ -14,7 +14,7 @@ def main():
         out = np.fft.fft(x)
 
     checksum = float(np.abs(out[0])) if out is not None else float("nan")
-    print(f"[fast_fourier_transform][jetson] n={N} repeat={REPEAT} checksum={checksum:.6f}")
+    print(f"[fast_fourier_transform] n={N} repeat={REPEAT} checksum={checksum:.6f}")
 
 if __name__ == "__main__":
     main()

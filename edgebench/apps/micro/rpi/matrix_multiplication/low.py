@@ -20,7 +20,7 @@ def main():
     checksum = float(out[0, 0]) if out is not None else float("nan")
 
     print(f"[matrix_multiplication][low] m={M} repeat={REPEAT}")
-    print(f"[matrix_multiplication][low] compute_time_s={end-start:.3f} checksum={checksum:.6f}")
+    print(f"[matrix_multiplication][low] inner_compute_time_s={end-start:.3f} checksum={checksum:.6f}")
 
 if __name__ == "__main__":
     main()

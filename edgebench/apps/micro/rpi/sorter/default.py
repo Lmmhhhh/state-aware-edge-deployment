@@ -40,7 +40,7 @@ def main():
 
     elapsed_s, checksum = run_sort_and_hash(input_path)
 
-    print(f"[sorter] input=data.txt elapsed_s={elapsed_s:.6f} checksum_sha256={checksum}")
+    print(f"[sorter] input=data.txt inner_elapsed_s={elapsed_s:.6f} checksum_sha256={checksum}")
 
 if __name__ == "__main__":
     main()
