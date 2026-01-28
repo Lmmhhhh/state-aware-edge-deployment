@@ -17,3 +17,6 @@ __pycache__/
 #dataset
 edgebench/apps/**/_data/**
 edgebench/apps/**/data/**
+
+#model
+*.pt
