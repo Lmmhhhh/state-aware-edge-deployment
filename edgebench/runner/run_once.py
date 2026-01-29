@@ -207,9 +207,10 @@ def aggregate_psutil_csv(psutil_path: str) -> Dict[str, Any]:
     if (not psutil_path) or (psutil_path == "NA") or (not os.path.exists(psutil_path)):
         return {
             "psutil_sample_count": 0,
-            "cpu_util_avg": "NA",
-            "mem_util_avg": "NA",
-            "mem_util_p95": "NA",
+            "cpu_util_pct__avg": "NA",
+            "cpu_util_pct__max": "NA",
+            "mem_util_pct__avg": "NA",
+            "mem_util_pct__p95": "NA",
         }
 
     cpu_vals: List[float] = []
@@ -253,8 +254,8 @@ def aggregate_psutil_csv(psutil_path: str) -> Dict[str, Any]:
 
 POWER_PATTERNS = [
     ("VIN_SYS_5V", re.compile(r"VIN\s+SYS_5V\s+(\d+)mW(?:/(\d+)mW)?")),
-    ("VDD_IN", re.compile(r"\bVDD_IN\s+(\d+)mW(?:/(\d+)mW)?")),
     ("POM_5V_IN",  re.compile(r"\bPOM_5V_IN\s+(\d+)mW(?:/(\d+)mW)?")),
+    ("VDD_IN", re.compile(r"\bVDD_IN\s+(\d+)mW(?:/(\d+)mW)?")),
 ]
 
 TEMP_CPU_PAT = re.compile(r"\bcpu@([0-9.]+)C")
@@ -413,8 +414,8 @@ def main():
     raw_tegrastats_dir = os.path.join(base_dir, "raw", "tegrastats")
     raw_psutil_dir = os.path.join(base_dir, "raw", "psutil")
     runs_dir = os.path.join(base_dir, "runs")
-    runs_meta_dir = os.path.json(runs_dir, "meta")
-    runs_log_dir = os.path.json(runs_dir, "log")
+    runs_meta_dir = os.path.join(runs_dir, "meta")
+    runs_log_dir = os.path.join(runs_dir, "log")
     runs_csv = os.path.join(runs_dir, "runs.csv")
 
     for d in [raw_stdout_dir, raw_tegrastats_dir, raw_psutil_dir, runs_dir, runs_meta_dir, runs_log_dir]:
@@ -648,13 +649,13 @@ def main():
         "avg_power_w__avg": tegra_agg.get("avg_power_w_e2e", "NA"),
         "avg_power_w__measured": tegra_agg.get("avg_power_w_measured", "NA"),
 
-        "cpu_util__avg": ps_agg["cpu_util_avg"],
-        "cpu_util__max": ps_agg["cpu_util_max"],
-        "mem_util__avg": ps_agg["mem_util_avg"],
-        "mem_util__p95": ps_agg["mem_util_p95"],
+        "cpu_uti_pct__avg": ps_agg["cpu_uti_pct__avg"],
+        "cpu_util_pct__max": ps_agg["cpu_util_pct__max"],
+        "mem_util_pct__avg": ps_agg["mem_util_pct__avg"],
+        "mem_util_pct__p95": ps_agg["mem_util_pct__p95"],
 
-        "temp_cpu_max_c": tegra_agg["temp_cpu_max_c"],
-        "temp_gpu_max_c": tegra_agg["temp_gpu_max_c"],
+        "temp_cpu_c__max": tegra_agg["temp_cpu_c__max"],
+        "temp_gpu_c__max": tegra_agg["temp_gpu_c__max"],
 
         "status": status,
         "return_code": ret,
