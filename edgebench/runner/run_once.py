@@ -641,12 +641,16 @@ def main():
         "flops": args.flops,
 
         "latency_ms": f"{latency_ms:.3f}",
-        "energy_j": tegra_agg["energy_j"],
-        "avg_power_w": tegra_agg["avg_power_w"],
 
-        "cpu_util_avg": ps_agg["cpu_util_avg"],
-        "mem_util_avg": ps_agg["mem_util_avg"],
-        "mem_util_p95": ps_agg["mem_util_p95"],
+        "energy_j": tegra_agg.get("energy_j", "NA"),
+        "avg_power_w__avg": tegra_agg.get("avg_power_w_e2e", "NA"),
+        "avg_power_w__measured": tegra_agg.get("avg_power_w_measured", "NA"),
+
+        "cpu_util__avg": ps_agg["cpu_util_avg"],
+        "cpu_util__max": ps_agg["cpu_util_max"],
+        "mem_util__avg": ps_agg["mem_util_avg"],
+        "mem_util__p95": ps_agg["mem_util_p95"],
+
         "temp_cpu_max_c": tegra_agg["temp_cpu_max_c"],
         "temp_gpu_max_c": tegra_agg["temp_gpu_max_c"],
 
