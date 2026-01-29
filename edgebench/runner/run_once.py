@@ -623,6 +623,7 @@ def main():
         "run_id": run_id,
         "timestamp_start": now_iso(),
         "t0_epoch": t0_epoch,
+        "t0_mono": t0_mono,
         "host": platform.node(),
         "platform": platform.platform(),
         "python": sys.version.split()[0],
@@ -764,6 +765,7 @@ def main():
 
     meta["timestamp_end"] = now_iso()
     meta["t1_epoch"] = t1_epoch
+    meta["t1_mono"] = t1_mono
     meta["return_code"] = ret
 
     duration_s = max(1e-6, (t1_mono - t0_mono))
