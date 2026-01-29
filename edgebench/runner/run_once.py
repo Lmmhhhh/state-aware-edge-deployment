@@ -407,16 +407,18 @@ def main():
     raw_tegrastats_dir = os.path.join(base_dir, "raw", "tegrastats")
     raw_psutil_dir = os.path.join(base_dir, "raw", "psutil")
     runs_dir = os.path.join(base_dir, "runs")
+    runs_meta_dir = os.path.json(runs_dir, "meta")
+    runs_log_dir = os.path.json(runs_dir, "log")
     runs_csv = os.path.join(runs_dir, "runs.csv")
 
-    for d in [raw_stdout_dir, raw_tegrastats_dir, raw_psutil_dir, runs_dir]:
+    for d in [raw_stdout_dir, raw_tegrastats_dir, raw_psutil_dir, runs_dir, runs_meta_dir, runs_log_dir]:
         ensure_dir(d)
 
     stdout_path = os.path.join(raw_stdout_dir, f"{run_id}.log")
     tegra_path = os.path.join(raw_tegrastats_dir, f"{run_id}.log")
     psutil_path = os.path.join(raw_psutil_dir, f"{run_id}.csv")
-    meta_path = os.path.join(runs_dir, f"{run_id}.meta.json")
-    runner_log_path = os.path.join(runs_dir, f"{run_id}.runner.log")
+    meta_path = os.path.join(runs_meta_dir, f"{run_id}.meta.json")
+    runner_log_path = os.path.join(runs_log_dir, f"{run_id}.runner.log")
 
     logger = RunnerLogger(runner_log_path)
     meta_errors: List[Dict[str, Any]] = []
