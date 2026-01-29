@@ -252,10 +252,9 @@ def aggregate_psutil_csv(psutil_path: str) -> Dict[str, Any]:
 
 
 POWER_PATTERNS = [
-    # preferred (your spec): "VIN SYS_5V 3659mW/3569mW"
     ("VIN_SYS_5V", re.compile(r"VIN\s+SYS_5V\s+(\d+)mW(?:/(\d+)mW)?")),
-    # common on many Jetsons: "VDD_IN 3093mW/3093mW"
     ("VDD_IN", re.compile(r"\bVDD_IN\s+(\d+)mW(?:/(\d+)mW)?")),
+    ("POM_5V_IN",  re.compile(r"\bPOM_5V_IN\s+(\d+)mW(?:/(\d+)mW)?")),
 ]
 
 TEMP_CPU_PAT = re.compile(r"\bcpu@([0-9.]+)C")
