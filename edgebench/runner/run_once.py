@@ -602,6 +602,8 @@ def main():
         "power_source": "NA",
         "avg_power_w": "NA",
         "energy_j": "NA",
+         "avg_power_w_e2e": "NA",
+        "avg_power_w_measured": "NA",
         "temp_cpu_max_c": "NA",
         "temp_gpu_max_c": "NA",
     }
