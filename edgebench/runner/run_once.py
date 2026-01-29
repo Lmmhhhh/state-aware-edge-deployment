@@ -235,20 +235,23 @@ def aggregate_psutil_csv(psutil_path: str) -> Dict[str, Any]:
     if n == 0:
         return {
             "psutil_sample_count": 0,
-            "cpu_util_avg": "NA",
-            "mem_util_avg": "NA",
-            "mem_util_p95": "NA",
+            "cpu_util_pct__avg": "NA",
+            "cpu_util_pct__max": "NA",
+            "mem_util_pct__avg": "NA",
+            "mem_util_pct__p95": "NA",
         }
 
     cpu_avg = sum(cpu_vals) / n
+    cpu_max = max(cpu_vals)
     mem_avg = sum(mem_vals) / n
     mem_p95 = percentile(mem_vals, 0.95)
 
     return {
         "psutil_sample_count": n,
-        "cpu_util_avg": f"{cpu_avg:.3f}",
-        "mem_util_avg": f"{mem_avg:.3f}",
-        "mem_util_p95": f"{mem_p95:.3f}",
+        "cpu_util_pct__avg": f"{cpu_avg:.3f}",
+        "cpu_util_pct__max": f"{cpu_max:.3f}",
+        "mem_util_pct__avg": f"{mem_avg:.3f}",
+        "mem_util_pct__p95": f"{mem_p95:.3f}",
     }
 
 
@@ -278,10 +281,10 @@ def aggregate_tegrastats(tegrastats_path: str, t0_epoch: float, t1_epoch: float)
             "tegra_sample_count": 0,
             "power_source": "NA",
             "energy_j": "NA",
-            "avg_power_w_e2e": "NA",
-            "avg_power_w_measured": "NA",
-            "temp_cpu_max_c": "NA",
-            "temp_gpu_max_c": "NA",
+            "avg_power_w__e2e": "NA",
+            "avg_power_w__measured": "NA",
+            "temp_cpu_c__max": "NA",
+            "temp_gpu_c__max": "NA",
         }
 
     samples: List[Tuple[float, float]] = []  # (ts, power_w)
@@ -329,10 +332,10 @@ def aggregate_tegrastats(tegrastats_path: str, t0_epoch: float, t1_epoch: float)
             "tegra_sample_count": len(samples),
             "power_source": power_source or "NA",
             "energy_j": "NA",
-            "avg_power_w_e2e": "NA",
-            "avg_power_w_measured": "NA",
-            "temp_cpu_max_c": f"{temp_cpu_max:.3f}" if temp_cpu_max is not None else "NA",
-            "temp_gpu_max_c": f"{temp_gpu_max:.3f}" if temp_gpu_max is not None else "NA",
+            "avg_power_w__e2e": "NA",
+            "avg_power_w__measured": "NA",
+            "temp_cpu_c__max": f"{temp_cpu_max:.3f}" if temp_cpu_max is not None else "NA",
+            "temp_gpu_c__max": f"{temp_gpu_max:.3f}" if temp_gpu_max is not None else "NA",
         }
 
     samples.sort(key=lambda x: x[0])
@@ -352,17 +355,17 @@ def aggregate_tegrastats(tegrastats_path: str, t0_epoch: float, t1_epoch: float)
     ts_last = samples[-1][0]
     measured_duration_s = max(1e-6, (ts_last - ts_first))  # tegrastats 기준
 
-    avg_power_w_e2e = energy_j / e2e_duration_s
-    avg_power_w_measured = energy_j / measured_duration_s
+    avg_power_w__e2e = energy_j / e2e_duration_s
+    avg_power_w__measured = energy_j / measured_duration_s
 
     return {
         "tegra_sample_count": len(samples),
         "power_source": power_source or "NA",
         "energy_j": f"{energy_j:.6f}",
-        "avg_power_w_e2e": f"{avg_power_w_e2e:.6f}",
-        "avg_power_w_measured": f"{avg_power_w_measured:.6f}",
-        "temp_cpu_max_c": f"{temp_cpu_max:.3f}" if temp_cpu_max is not None else "NA",
-        "temp_gpu_max_c": f"{temp_gpu_max:.3f}" if temp_gpu_max is not None else "NA",
+        "avg_power_w__e2e": f"{avg_power_w__e2e:.6f}",
+        "avg_power_w__measured": f"{avg_power_w__measured:.6f}",
+        "temp_cpu_c__max": f"{temp_cpu_max:.3f}" if temp_cpu_max is not None else "NA",
+        "temp_gpu_c__max": f"{temp_gpu_max:.3f}" if temp_gpu_max is not None else "NA",
     }
 
 def append_run_csv(csv_path: str, row: Dict[str, Any], fieldnames: List[str]):
@@ -448,10 +451,10 @@ def main():
         logger.error(str(e))
         raise e
 
-    extra = args.script_args
+    extra = args.script_args   
     if extra and extra[0] == "--":
         extra = extra[1:]
-    cmd = ["python", script_path] + extra
+    cmd = [sys.executable, script_path] + extra
 
     logger.info(f"script_path={script_path}")
     logger.info(f"cmd={' '.join(cmd)}")
@@ -459,6 +462,9 @@ def main():
     # timestamps
     t0_epoch = time.time()
     t0_mono = time.perf_counter()
+
+    t1_epoch: Optional[float] = None
+    t1_mono: Optional[float] = None
 
     # meta
     meta: Dict[str, Any] = {
@@ -548,11 +554,17 @@ def main():
             p = subprocess.Popen(cmd, stdout=out, stderr=subprocess.STDOUT, text=True)
             ret = p.wait()
 
+            t1_epoch = time.time()
+            t1_mono = time.perf_counter()
+
     except Exception as e:
         workload_exc = exc_info_dict(e)
         workload_exc["where"] = "subprocess_run_workload"
         meta_errors.append(workload_exc)
         logger.error(f"workload execution failed: {workload_exc['error_type']}: {workload_exc['error_message']}")
+
+        t1_epoch = t1_epoch or time.time()
+        t1_mono = t1_mono or time.perf_counter()
 
     finally:
         # after snapshot (meta only)
@@ -584,9 +596,8 @@ def main():
             meta_errors.append(info)
             logger.error(f"failed stopping tegrastats: {info['error_type']}: {info['error_message']}")
 
-    # end timestamps
-    t1_epoch = time.time()
-    t1_mono = time.perf_counter()
+    t1_epoch = t1_epoch or time.time()
+    t1_mono = t1_mono or time.perf_counter()
 
     meta["timestamp_end"] = now_iso()
     meta["t1_epoch"] = t1_epoch
@@ -601,12 +612,11 @@ def main():
     tegra_agg = {
         "tegra_sample_count": 0,
         "power_source": "NA",
-        "avg_power_w": "NA",
         "energy_j": "NA",
-         "avg_power_w_e2e": "NA",
-        "avg_power_w_measured": "NA",
-        "temp_cpu_max_c": "NA",
-        "temp_gpu_max_c": "NA",
+        "avg_power_w__e2e": "NA",
+        "avg_power_w__measured": "NA",
+        "temp_cpu_c__max": "NA",
+        "temp_gpu_c__max": "NA",
     }
     if device == "jetson" and is_jetson_runtime():
         try:
@@ -646,22 +656,22 @@ def main():
         "latency_ms": f"{latency_ms:.3f}",
 
         "energy_j": tegra_agg.get("energy_j", "NA"),
-        "avg_power_w__avg": tegra_agg.get("avg_power_w_e2e", "NA"),
-        "avg_power_w__measured": tegra_agg.get("avg_power_w_measured", "NA"),
+        "avg_power_w__avg": tegra_agg.get("avg_power_w__e2e", "NA"),
+        "avg_power_w__measured": tegra_agg.get("avg_power_w__measured", "NA"),
 
-        "cpu_uti_pct__avg": ps_agg["cpu_uti_pct__avg"],
+        "cpu_util_pct__avg": ps_agg["cpu_util_pct__avg"],
         "cpu_util_pct__max": ps_agg["cpu_util_pct__max"],
         "mem_util_pct__avg": ps_agg["mem_util_pct__avg"],
         "mem_util_pct__p95": ps_agg["mem_util_pct__p95"],
 
-        "temp_cpu_c__max": tegra_agg["temp_cpu_c__max"],
-        "temp_gpu_c__max": tegra_agg["temp_gpu_c__max"],
+        "temp_cpu_c__max": tegra_agg.get("temp_cpu_c__max", "NA"),
+        "temp_gpu_c__max": tegra_agg.get("temp_gpu_c__max", "NA"),
 
         "status": status,
         "return_code": ret,
         "psutil_sample_count": ps_agg["psutil_sample_count"],
-        "tegra_sample_count": tegra_agg["tegra_sample_count"],
-        "power_source": tegra_agg["power_source"],
+        "tegra_sample_count": tegra_agg.get("tegra_sample_count", 0),
+        "power_source": tegra_agg.get("power_source", "NA"),
         "error_type": workload_exc["error_type"] if workload_exc else "NA",
 
         "stdout_path": stdout_path,
