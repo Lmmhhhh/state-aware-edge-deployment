@@ -276,8 +276,9 @@ def aggregate_tegrastats(tegrastats_path: str, t0_epoch: float, t1_epoch: float)
         return {
             "tegra_sample_count": 0,
             "power_source": "NA",
-            "avg_power_w": "NA",
             "energy_j": "NA",
+            "avg_power_w_e2e": "NA",
+            "avg_power_w_measured": "NA",
             "temp_cpu_max_c": "NA",
             "temp_gpu_max_c": "NA",
         }
@@ -326,36 +327,42 @@ def aggregate_tegrastats(tegrastats_path: str, t0_epoch: float, t1_epoch: float)
         return {
             "tegra_sample_count": len(samples),
             "power_source": power_source or "NA",
-            "avg_power_w": "NA",
             "energy_j": "NA",
+            "avg_power_w_e2e": "NA",
+            "avg_power_w_measured": "NA",
             "temp_cpu_max_c": f"{temp_cpu_max:.3f}" if temp_cpu_max is not None else "NA",
             "temp_gpu_max_c": f"{temp_gpu_max:.3f}" if temp_gpu_max is not None else "NA",
         }
 
     samples.sort(key=lambda x: x[0])
 
-    # energy_j = Σ power_w[k] * Δt_k
+    # energy_j = trapezoid integration: Σ (p[k] + p[k+1]) / 2 * Δt
     energy_j = 0.0
     for i in range(len(samples) - 1):
         ts0, p0 = samples[i]
-        ts1, _ = samples[i + 1]
+        ts1, p1 = samples[i + 1]
         dt = ts1 - ts0
         if dt <= 0:
             continue
-        energy_j += p0 * dt
+        energy_j += (p0 + p1) * 0.5 * dt
 
-    duration_s = max(1e-6, (t1_epoch - t0_epoch))
-    avg_power_w = energy_j / duration_s
+    e2e_duration_s = max(1e-6, (t1_epoch - t0_epoch))  # runner 기준
+    ts_first = samples[0][0]
+    ts_last = samples[-1][0]
+    measured_duration_s = max(1e-6, (ts_last - ts_first))  # tegrastats 기준
+
+    avg_power_w_e2e = energy_j / e2e_duration_s
+    avg_power_w_measured = energy_j / measured_duration_s
 
     return {
         "tegra_sample_count": len(samples),
         "power_source": power_source or "NA",
-        "avg_power_w": f"{avg_power_w:.6f}",
         "energy_j": f"{energy_j:.6f}",
+        "avg_power_w_e2e": f"{avg_power_w_e2e:.6f}",
+        "avg_power_w_measured": f"{avg_power_w_measured:.6f}",
         "temp_cpu_max_c": f"{temp_cpu_max:.3f}" if temp_cpu_max is not None else "NA",
         "temp_gpu_max_c": f"{temp_gpu_max:.3f}" if temp_gpu_max is not None else "NA",
     }
-
 
 def append_run_csv(csv_path: str, row: Dict[str, Any], fieldnames: List[str]):
     new_file = not os.path.exists(csv_path)
