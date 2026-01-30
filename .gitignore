@@ -20,3 +20,7 @@ edgebench/apps/**/data/**
 
 #model
 *.pt
+
+#test
+edgebench/mobilenet_test.py
+edgebench/resnet50_test.py
