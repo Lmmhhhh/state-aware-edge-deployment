@@ -12,12 +12,12 @@ def main():
         for x in range(DEGREE_MAX + 1):
             acc += sin(x * pi / 180.0)
 
-    cinner_elapsed_s = time.perf_counter() - start
+    inner_elapsed_s = time.perf_counter() - start
     checksum = float(acc)
 
     print(
         f"[workload=floating_point_op_sine]"
-        f"outer={OUTER} x_max={X_MAX} inner_elapsed_s={inner_elapsed_s:.6f} checksum={checksum:.6f}"
+        f"outer={OUTER} degree_max={DEGREE_MAX} inner_elapsed_s={inner_elapsed_s:.6f} checksum={checksum:.6f}"
     )
 
 if __name__ == "__main__":
