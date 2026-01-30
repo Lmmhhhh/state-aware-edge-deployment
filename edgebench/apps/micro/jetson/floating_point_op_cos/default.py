@@ -17,7 +17,7 @@ def main():
 
     print(
         f"[workload=floating_point_op_cos]"
-        f"outer={OUTER} x_max={X_MAX} inner_elapsed_s={inner_elapsed_s:.6f} checksum={checksum:.6f}"
+        f"outer={OUTER} degree_max={DEGREE_MAX} inner_elapsed_s={inner_elapsed_s:.6f} checksum={checksum:.6f}"
     )
 
 if __name__ == "__main__":

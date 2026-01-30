@@ -1,0 +1,198 @@
+meta_version: "1.0"
+device: "jetson"
+updated_at: "2026-01-30" 
+
+workloads:
+  #micro
+  matrix_multiplication:
+    low:
+      workload_category: "cpu"
+      input_size: 1000
+      input_size_unit: "N"
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64"        
+      model_size_mb: 0.0
+      inner_iters: 100    
+      flops: 200000000000    
+
+    medium:
+      workload_category: "cpu"
+      input_size: 1500
+      input_size_unit: "N"
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64"
+      model_size_mb: 0.0
+      inner_iters: 100
+      flops: 675000000000
+
+    high:
+      workload_category: "cpu"
+      input_size: 2000
+      input_size_unit: "N"
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64"
+      model_size_mb: 0.0
+      inner_iters: 100
+      flops: 1600000000000
+
+  floating_point_op_sine:
+    default:
+      workload_category: "cpu"
+      input_size: 361
+      input_size_unit: "degrees"  
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64" 
+      model_size_mb: 0.0
+      inner_iters: 100001 
+      flops: -1
+
+  floating_point_op_cos:
+    default:
+      workload_category: "cpu"
+      input_size: 361
+      input_size_unit: "degrees"
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64"
+      model_size_mb: 0.0
+      inner_iters: 100001
+      flops: -1
+
+  floating_point_op_sqrt:
+    default:
+      workload_category: "cpu"
+      input_size: 1000000
+      input_size_unit: "steps"
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64"
+      model_size_mb: 0.0
+      inner_iters: 1001
+      flops: -1
+
+  sorter:
+    default:
+      workload_category: "cpu"
+      input_size: 13183803
+      input_size_unit: "bytes"
+      batch_size: 1
+      gpu_used: 0
+      precision: "NA"
+      model_size_mb: 0.0
+      flops: -1
+  
+  fast_fourier_transform:
+    default:
+      workload_category: "cpu"
+      input_size: 10000000
+      input_size_unit: "samples"
+      batch_size: 1
+      gpu_used: 0
+      precision: "fp64"
+      model_size_mb: 0.0
+      inner_iters: 3
+      flops: -1
+
+  iperf3:
+    default:
+      workload_category: "network"
+      input_size: 10
+      input_size_unit: "seconds"
+      batch_size: 1
+      gpu_used: 0
+      model_size_mb: 0.0
+      precision: "NA"
+      flops: -1
+
+  #app-level
+  image_classification_mnv3_cpu:
+    default:
+      workload_category: "cpu"
+      input_size: 50176
+      input_size_unit: "pixels_in"  #224*224
+      batch_size: 1
+      gpu_used: 0
+      model_size_mb: 21.010
+      precision: "fp32"
+      flops: 462632832
+  
+  image_classification_mnv3_cuda:
+    default:
+      workload_category: "gpu"
+      input_size: 50176
+      input_size_unit: "pixels_in"  #224*224
+      batch_size: 1
+      gpu_used: 1
+      model_size_mb: 21.010
+      precision: "fp32" #확인 필요
+      flops: 462632832
+
+  image_classification_resnet50_cpu:
+    default:
+      workload_category: "cpu"
+      input_size: 50176
+      input_size_unit: "pixels_in"
+      batch_size: 1
+      gpu_used: 0
+      model_size_mb: 97.695
+      precision: "fp32"
+      flops: 8264873936
+  
+  image_classification_resnet50_cuda:
+    default:
+      workload_category: "gpu"
+      input_size: 50176
+      input_size_unit: "pixels_in"
+      batch_size: 1
+      gpu_used: 1
+      model_size_mb: 97.695
+      precision: "fp32" #확인 필요
+      flops: 8264873936
+  
+  image_processing:
+    default:
+      workload_category: "cpu"
+      input_size: 20480000
+      input_size_unit: "pixels_out"   # 400*400*128
+      batch_size: 128
+      gpu_used: 0
+      model_size_mb: 0.0
+      precision: "NA"
+      flops: -1
+  
+  object_detection_yolov8s_cpu:
+    default:
+      workload_category: "cpu"
+      input_size: 409600
+      input_size_unit: "pixels_in"   # 640*640
+      batch_size: 1
+      gpu_used: 0
+      model_size_mb: 21.542
+      precision: "fp32"
+      flops: 28600000000
+  
+  object_detection_yolov8s_cuda:
+    default:
+      workload_category: "gpu"
+      input_size: 409600
+      input_size_unit: "pixels_in"   # 640*640
+      batch_size: 1
+      gpu_used: 1
+      model_size_mb: 21.542
+      precision: "fp32" #확인 필요
+      flops: 28600000000
+  
+  sentiment_analysis:
+    default:
+      workload_category: "cpu"
+      input_size: 512
+      input_size_unit: "samples"
+      batch_size: 1
+      gpu_used: 0
+      model_size_mb: 0.0
+      precision: "NA"
+      flops: -1
