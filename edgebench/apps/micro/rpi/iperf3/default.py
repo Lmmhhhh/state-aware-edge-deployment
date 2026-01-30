@@ -4,9 +4,9 @@ import socket
 import subprocess
 import time
 
-SERVER_HOST = os.getenv("EDGEBENCH_IPERF_HOST", "127.0.0.1")
+SERVER_HOST = os.getenv("EDGEBENCH_IPERF_HOST", "192.168.0.130")
 PORT = int(os.getenv("EDGEBENCH_IPERF_PORT", "5201"))
-DURATION_S = int(os.getenv("EDGEBENCH_IPERF_DURATION_S", "5"))
+DURATION_S = int(os.getenv("EDGEBENCH_IPERF_DURATION_S", "10"))
 PARALLEL = int(os.getenv("EDGEBENCH_IPERF_PARALLEL", "1"))
 REVERSE = os.getenv("EDGEBENCH_IPERF_REVERSE", "0") == "1"
 
@@ -14,12 +14,11 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True)
 
 def _wait_port_open(port: int, timeout_s: float = 2.0, interval_s: float = 0.05) -> bool:
-    # 로컬 서버 준비 확인(127.0.0.1:PORT)
     t_end = time.time() + timeout_s
     while time.time() < t_end:
         try:
             import socket as _s
-            with _s.create_connection(("127.0.0.1", port), timeout=0.2):
+            with _s.create_connection(("192.168.0.130", port), timeout=0.2):
                 return True
         except OSError:
             time.sleep(interval_s)
@@ -40,7 +39,7 @@ def main():
 
     try:
         if not _wait_port_open(PORT, timeout_s=2.0):
-            raise RuntimeError(f"iperf3 server not ready on 127.0.0.1:{PORT}")
+            raise RuntimeError(f"iperf3 server not ready on 192.168.0.130:{PORT}")
 
         client_cmd = [
             "iperf3", "-c", SERVER_HOST,

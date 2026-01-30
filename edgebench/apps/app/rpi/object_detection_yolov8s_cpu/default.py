@@ -33,7 +33,7 @@ def main():
 
     # inference
     # verbose=False 
-    results = model.predict(source=str(img_path), device="cpu", verbose=False)
+    results = model.predict(source=str(img_path), device="cpu", imgsz=640, verbose=False)
 
     r0 = results[0]
     n_boxes = 0
