@@ -14,6 +14,13 @@ import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+yaml_import_error: Optional[str] = None
+try:
+    import yaml  # type: ignore
+except ImportError as e:
+    yaml = None
+    yaml_import_error = f"{type(e).__name__}: {e}"
+
 
 psutil_import_error: Optional[str] = None
 try:
@@ -116,6 +123,78 @@ def get_power_mode_jetson() -> str:
         return out.splitlines()[0].strip() if out else "NA"
     except Exception:
         return "NA"
+
+
+# ---------------------------
+# workload meta mapping (YAML)
+# ---------------------------
+def default_workload_meta_path(edge_root: str, device: str) -> str:
+    # edgebench/runner/config/workload_meta_{device}.yaml
+    return os.path.join(edge_root, "runner", "config", f"workload_meta_{device}.yaml")
+
+
+def load_workload_meta_or_die(path: str) -> Dict[str, Any]:
+    if yaml is None:
+        raise ImportError(f"PyYAML is required but not installed. import_error={yaml_import_error}")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"workload meta yaml not found: {path}")
+    with open(path, "r", encoding="utf-8") as f:
+        obj = yaml.safe_load(f)
+    if not isinstance(obj, dict):
+        raise ValueError(f"invalid workload meta yaml (expected dict at top-level): {path}")
+    return obj
+
+
+def lookup_workload_entry_or_die(meta_obj: Dict[str, Any], workload_id: str, variant: str, path: str) -> Dict[str, Any]:
+    workloads = meta_obj.get("workloads")
+    if not isinstance(workloads, dict):
+        raise KeyError(f"invalid yaml: missing 'workloads' dict in {path}")
+
+    w = workloads.get(workload_id)
+    if not isinstance(w, dict):
+        raise KeyError(f"workload_id not found in yaml: workload_id={workload_id} (path={path})")
+
+    v = w.get(variant)
+    if isinstance(v, dict):
+        return v
+
+    # fallback to default
+    v = w.get("default")
+    if isinstance(v, dict):
+        return v
+
+    raise KeyError(
+        f"variant not found in yaml (and no default): workload_id={workload_id} variant={variant} (path={path})"
+    )
+
+
+def apply_workload_mapping_or_die(args: argparse.Namespace, entry: Dict[str, Any], path: str):
+    required_keys = [
+        "workload_category",
+        "input_size",
+        "batch_size",
+        "gpu_used",
+        "model_size_mb",
+        "precision",
+        "flops",
+    ]
+    missing = [k for k in required_keys if k not in entry]
+    if missing:
+        raise KeyError(f"missing required keys in yaml entry: {missing} (path={path})")
+
+    # types
+    args.workload_category = str(entry["workload_category"])
+    args.input_size = int(entry["input_size"])
+    args.batch_size = int(entry["batch_size"])
+    args.gpu_used = int(entry["gpu_used"])
+    args.model_size_mb = float(entry["model_size_mb"])
+    args.precision = str(entry["precision"])
+    args.flops = float(entry["flops"])
+
+    # keep extras for meta traceability
+    known = set(required_keys)
+    extras = {k: v for k, v in entry.items() if k not in known}
+    args._workload_meta_extra = extras  # type: ignore
 
 
 # ---------------------------
@@ -385,6 +464,7 @@ TEMP_GPU_PAT = re.compile(r"\bgpu@([0-9.]+)C|\bGPU@([0-9.]+)C")
 # GR3D_FREQ 0% or GR3D_FREQ 99% ... sometimes "GR3D_FREQ 0%@..." -> capture leading %
 GPU_UTIL_PAT = re.compile(r"\bGR3D_FREQ\s+(\d+)%")
 
+
 def parse_power_mw(raw_line: str) -> Tuple[Optional[float], Optional[float], Optional[str]]:
     for name, pat in POWER_PATTERNS:
         m = pat.search(raw_line)
@@ -414,7 +494,7 @@ def aggregate_tegrastats(tegrastats_path: str, t0_epoch: float, t1_epoch: float)
             "gpu_util_pct__avg": "NA",
         }
 
-    samples: List[Tuple[float, float]] = []  
+    samples: List[Tuple[float, float]] = []
     temp_cpu_max: Optional[float] = None
     temp_gpu_max: Optional[float] = None
     power_source: Optional[str] = None
@@ -525,34 +605,26 @@ def append_run_csv(csv_path: str, row: Dict[str, Any], fieldnames: List[str]):
 def main():
     ap = argparse.ArgumentParser()
 
-    # core (single, reproducible mode)
     ap.add_argument("--device", default="auto", choices=["auto", "jetson", "rpi"])
     ap.add_argument("--tier", default="micro", choices=["micro", "app"])
     ap.add_argument("--workload_id", required=True)
-    ap.add_argument("--variant", required=True)  # low/medium/high
+    ap.add_argument("--variant", required=True)
 
-    # workload meta (kept for schema / ML features)
-    ap.add_argument("--workload_category", default="cpu")
-    ap.add_argument("--input_size", type=int, default=-1)
-    ap.add_argument("--batch_size", type=int, default=1)
-    ap.add_argument("--gpu_used", type=int, default=0)
-    ap.add_argument("--model_size_mb", type=float, default=-1.0)
-    ap.add_argument("--precision", default="NA")
-    ap.add_argument("--flops", type=float, default=-1.0)
+    ap.add_argument("--co_run_count", type=int, default=1)
 
-    # device-level state / experiment knobs
-    ap.add_argument("--co_run_count", type=int, default=1) 
-
-    # sampling
     ap.add_argument("--state_interval_s", type=float, default=1.0)
 
-    # pass-through args to workload
     ap.add_argument("script_args", nargs=argparse.REMAINDER)
 
     args = ap.parse_args()
 
     EDGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     device = resolve_device(args.device)
+
+    meta_yaml_path = default_workload_meta_path(EDGE_ROOT, device)
+    meta_yaml_obj = load_workload_meta_or_die(meta_yaml_path)
+    entry = lookup_workload_entry_or_die(meta_yaml_obj, args.workload_id, args.variant, meta_yaml_path)
+    apply_workload_mapping_or_die(args, entry, meta_yaml_path)
 
     run_id = f"{args.workload_id}-{args.variant}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
@@ -579,10 +651,11 @@ def main():
 
     logger.info(f"run_id={run_id}")
     logger.info(f"device={device} tier={args.tier}")
+    logger.info(f"workload_meta_path={meta_yaml_path}")
     if psutil is None:
         logger.warn(f"psutil import failed: {psutil_import_error}")
 
-    # device-level states 
+    # device-level states
     cpu_governor = get_cpu_governor()
     throttle_flag = get_throttle_flag_rpi() if device == "rpi" else "NA"
     power_mode = get_power_mode_jetson() if device == "jetson" else "NA"
@@ -592,7 +665,6 @@ def main():
     logger.info(f"power_mode={power_mode}")
     logger.info(f"co_run_count={args.co_run_count}")
 
-    # determine workload script path by convention
     script_path = build_workload_script(EDGE_ROOT, args.tier, device, args.workload_id, args.variant)
     if not os.path.exists(script_path):
         e = FileNotFoundError(
@@ -641,6 +713,8 @@ def main():
             "model_size_mb": args.model_size_mb,
             "precision": args.precision,
             "flops": args.flops,
+            "workload_meta_path": meta_yaml_path,
+            "workload_meta_extra": getattr(args, "_workload_meta_extra", {}),
         },
         "device_state": {
             "co_run_count": args.co_run_count,
@@ -734,7 +808,6 @@ def main():
         # after snapshot
         meta["state_after"] = psutil_snapshot()
 
-        # stop collectors
         try:
             ps_stop.set()
             if ps_thread is not None:
@@ -771,7 +844,6 @@ def main():
     duration_s = max(1e-6, (t1_mono - t0_mono))
     latency_ms = duration_s * 1000.0
 
-    # aggregates -> per-run values
     ps_agg = aggregate_psutil_csv(psutil_path if psutil is not None else "NA")
 
     tegra_agg = {
@@ -799,7 +871,6 @@ def main():
     meta["latency_ms"] = float(f"{latency_ms:.3f}")
     meta["aggregates"] = {"psutil": ps_agg, "tegrastats": tegra_agg}
 
-    # write meta
     with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2)
 
@@ -811,7 +882,6 @@ def main():
         "tier": args.tier,
         "workload_id": args.workload_id,
         "variant": args.variant,
-
         "workload_category": args.workload_category,
         "input_size": args.input_size,
         "batch_size": args.batch_size,
@@ -820,24 +890,18 @@ def main():
         "precision": args.precision,
         "flops": args.flops,
         "memory_footprint_peak_mb": ps_agg.get("memory_footprint_peak_mb", "NA"),
-
-    
         "cpu_util_pct__avg": ps_agg.get("cpu_util_pct__avg", "NA"),
         "cpu_util_pct__max": ps_agg.get("cpu_util_pct__max", "NA"),
         "mem_util_pct__avg": ps_agg.get("mem_util_pct__avg", "NA"),
         "mem_util_pct__p95": ps_agg.get("mem_util_pct__p95", "NA"),
-
         "temp_cpu_c__max": tegra_agg.get("temp_cpu_c__max", "NA"),
         "gpu_util_pct__avg": tegra_agg.get("gpu_util_pct__avg", "NA"),
         "temp_gpu_c__max": tegra_agg.get("temp_gpu_c__max", "NA"),
-
         "co_run_count": str(args.co_run_count),
-
         "power_mode": power_mode,
         "cpu_governor": cpu_governor,
         "throttle_flag": throttle_flag,
         "cpu_freq_mhz__avg": ps_agg.get("cpu_freq_mhz__avg", "NA"),
-
         "latency_ms": f"{latency_ms:.3f}",
         "energy_j": tegra_agg.get("energy_j", "NA"),
         "avg_power_w__avg": tegra_agg.get("avg_power_w__e2e", "NA"),
