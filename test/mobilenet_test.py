@@ -7,8 +7,8 @@ import torch
 from PIL import Image
 from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights
 
-APP_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_IMG_DIR = APP_ROOT / "_data" / "image_classification" / "coco2017_val" / "images"
+APP_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_IMG_DIR = APP_ROOT / "edgebench" /"apps" / "app" / "_data" / "image_classification" / "coco2017_val" / "images"
 
 def pick_fixed_image(img_dir: Path) -> Path:
     exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
